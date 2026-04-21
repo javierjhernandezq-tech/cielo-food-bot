@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cielo Food House | Próximamente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cielo: {
+                            pink: '#F5A9BC',
+                            pinkLight: '#fdebf0',
+                            crema: '#F7D358',
+                            blue: '#A9E2F3',
+                            dark: '#4A4A4A'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Quicksand', 'sans-serif'],
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Quicksand', sans-serif; background-color: #fafafa; overflow: hidden;}
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(245, 169, 188, 0.15);
+        }
+    </style>
+</head>
+<body class="text-cielo-dark antialiased h-screen w-full flex items-center justify-center relative">
+
+    <!-- FLUID BACKGROUND ELEMENTS -->
+    <div class="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-cielo-pink/30 blur-[120px] animate-pulse-slow"></div>
+    <div class="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-cielo-crema/20 blur-[130px] animate-pulse-slow" style="animation-delay: 2s;"></div>
+    <div class="absolute top-[30%] right-[30%] w-[40%] h-[40%] rounded-full bg-cielo-blue/20 blur-[100px] animate-pulse-slow" style="animation-delay: 1s;"></div>
+
+    <!-- MAIN CONTENT CARD -->
+    <main class="relative z-10 w-[90%] max-w-lg glass-panel rounded-[3rem] p-10 md:p-14 text-center mx-4 animate-float">
+        
+        <!-- LOGO ORB -->
+        <div class="mx-auto w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-cielo-pink to-cielo-crema flex items-center justify-center text-white font-extrabold text-3xl md:text-5xl shadow-xl shadow-cielo-pink/20 mb-8 border-4 border-white">
+            CH
+        </div>
+
+        <h1 class="text-4xl md:text-5xl font-extrabold text-cielo-dark tracking-tight leading-tight mb-4">
+            Cielo<br>Food House
+        </h1>
+        
+        <div class="inline-block bg-cielo-pinkLight text-cielo-pink font-bold px-4 py-1.5 rounded-full text-sm mb-6 uppercase tracking-wider border border-cielo-pink/20">
+            Próximamente
+        </div>
+
+        <p class="text-cielo-dark/70 font-medium text-lg leading-relaxed mb-10">
+            Estamos cocinando una nueva experiencia digital para ti.<br>
+            <strong>Momentos que saben a Venezuela</strong>, ahora a un clic de distancia.
+        </p>
+
+        <!-- SOCIAL LINKS -->
+        <div class="flex justify-center gap-4">
+            <a href="https://www.instagram.com/cielofoodhouse/" target="_blank" class="flex-1 bg-gradient-to-r from-cielo-pink to-[#f47ba0] text-white font-bold py-4 px-6 rounded-2xl hover:scale-105 transition-transform shadow-lg shadow-cielo-pink/30 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                Instagram
+            </a>
+        </div>
+
+    </main>
+
+</body>
+</html>

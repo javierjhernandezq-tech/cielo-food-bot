@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cielo Food House | Momentos que saben a Venezuela</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cielo: {
+                            pink: '#F5A9BC',
+                            pinkLight: '#fdebf0',
+                            crema: '#F7D358',
+                            blue: '#A9E2F3',
+                            blueLight: '#e4f6fc',
+                            dark: '#4A4A4A'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Quicksand', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Quicksand', sans-serif; background-color: #fafafa; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 32px 0 rgba(245, 169, 188, 0.15);
+        }
+        .soft-shadow {
+            box-shadow: 0 4px 20px 0 rgba(245, 169, 188, 0.2);
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(245,169,188,0.5); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(245,169,188,0.8); }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="text-cielo-dark antialiased overflow-x-hidden" x-data="cieloApp()">
+
+    <!-- FLUID BACKGROUND -->
+    <div class="fixed top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-cielo-pink/20 blur-[130px] pointer-events-none z-0"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-cielo-crema/20 blur-[130px] pointer-events-none z-0"></div>
+    <div class="fixed top-[20%] right-[20%] w-[30%] h-[30%] rounded-full bg-cielo-blue/20 blur-[100px] pointer-events-none z-0"></div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div class="relative z-10 w-full min-h-screen flex flex-col">
+        
+        <!-- NAVIGATION -->
+        <nav class="glass-panel sticky top-0 z-50 px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer" @click="view = 'landing'">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cielo-pink to-cielo-crema flex items-center justify-center text-white font-bold text-xl shadow-md">
+                    CH
+                </div>
+                <div>
+                    <h1 class="font-bold text-xl text-cielo-pink">Cielo Food House</h1>
+                    <p class="text-xs text-cielo-dark/70 font-medium tracking-wider">Campana, Bs As 📍</p>
+                </div>
+            </div>
+            <div class="flex gap-4 items-center">
+                <button @click="view = 'landing'" class="text-sm font-bold text-cielo-dark hover:text-cielo-pink transition-colors" :class="view === 'landing' ? 'text-cielo-pink' : ''">Menú</button>
+                <button @click="view = 'admin'" class="bg-white/50 text-sm font-bold border-2 border-cielo-blue text-cielo-blue px-4 py-2 rounded-full hover:bg-cielo-blue hover:text-white transition-all shadow-sm" :class="view === 'admin' ? 'bg-cielo-blue !text-white' : ''">
+                    Admin Kanban
+                </button>
+            </div>
+        </nav>
+
+        <!-- ============================================== -->
+        <!-- VISTA LANDING PAGE (CLIENTES)                  -->
+        <!-- ============================================== -->
+        <main x-show="view === 'landing'" x-transition.opacity.duration.500ms class="flex-1 flex flex-col items-center pb-20">
+            <!-- HERO -->
+            <section class="w-full max-w-6xl mx-auto px-6 py-16 flex flex-col md:flex-row items-center gap-12">
+                <div class="flex-1 space-y-6">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 bg-cielo-pinkLight text-cielo-pink font-bold rounded-full text-sm border border-cielo-pink/30">
+                        <span>✨ Sabor Venezolano</span>
+                    </div>
+                    <h2 class="text-5xl md:text-6xl font-extrabold leading-tight text-cielo-dark">
+                        Momentos que<br>saben a <span class="bg-gradient-to-r from-cielo-pink to-cielo-crema text-transparent bg-clip-text">Felicidad</span>
+                    </h2>
+                    <p class="text-lg text-cielo-dark/70 font-medium max-w-lg">
+                        Los tequeños más doraditos, crujientes y recién hechos de Campana. Pídelos congelados o listos para devorar.
+                    </p>
+                    <div class="flex gap-4 pt-4">
+                        <a href="#menu" class="bg-cielo-pink hover:bg-pink-400 text-white font-bold px-8 py-3 rounded-full soft-shadow transition-transform hover:-translate-y-1">
+                            Ver Menú
+                        </a>
+                        <button @click="alert('Simulando redirección a WhatsApp: +54 11 3032-2122')" class="bg-white text-cielo-dark font-bold px-8 py-3 rounded-full soft-shadow transition-transform hover:-translate-y-1 flex gap-2 items-center border border-cielo-pink/20">
+                            📱 Pedir por WhatsApp
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 relative">
+                    <div class="w-full aspect-square md:aspect-video rounded-3xl bg-cielo-crema/20 border-4 border-white soft-shadow overflow-hidden relative flex items-center justify-center">
+                        <!-- Simulated Image placeholder instead of real images since we don't have them -->
+                        <div class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-tr from-cielo-pinkLight to-white">
+                            <span class="text-6xl mb-4">🧀</span>
+                            <span class="font-bold text-cielo-pink/60 text-xl tracking-widest uppercase">Tequeños Crujientes</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="menu" class="w-full max-w-6xl mx-auto px-6 py-16">
+                <h3 class="text-4xl font-extrabold text-center mb-12 text-cielo-dark tracking-tight">Menú Cielo Food House</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <template x-for="item in menuItems" :key="item.title">
+                        <div class="glass-panel p-6 rounded-3xl text-center group hover:-translate-y-2 transition-transform duration-300 relative"
+                             :class="{ 'border border-cielo-pink/30': item.theme === 'pink', 'border border-cielo-blue/30': item.theme === 'blue' }">
+                            <div class="w-24 h-24 mx-auto bg-white rounded-full flex items-center justify-center text-4xl mb-4 soft-shadow group-hover:scale-110 transition-transform" x-text="item.emoji"></div>
+                            <h4 class="text-xl font-bold mb-2" x-text="item.title"></h4>
+                            <p class="text-cielo-dark/70 text-sm mb-4 h-10" x-text="item.desc"></p>
+                            <p class="font-extrabold text-2xl text-cielo-pink mb-4" x-text="'$' + item.price.toLocaleString('es-AR')"></p>
+                            <button @click="createTestOrder(item)" 
+                                    class="w-full font-bold py-2 rounded-xl transition-colors soft-shadow"
+                                    :class="{
+                                        'bg-cielo-pink text-white hover:bg-pink-400': item.theme === 'pink',
+                                        'bg-cielo-blueLight text-cielo-blue hover:bg-cielo-blue hover:text-white': item.theme === 'blue',
+                                        'bg-cielo-crema text-white hover:brightness-95': item.theme === 'crema'
+                                    }">
+                                Agregar al Carrito
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </section>
+        </main>
+
+
+        <!-- ============================================== -->
+        <!-- VISTA ADMIN KANBAN                             -->
+        <!-- ============================================== -->
+        <main x-cloak x-show="view === 'admin'" x-transition.opacity.duration.500ms class="flex-1 flex overflow-hidden p-6 gap-6 relative h-[calc(100vh-80px)]">
+            
+            <!-- Kanban Columns -->
+            <div class="flex-1 overflow-x-auto flex flex-col h-full bg-white/40 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/60 shadow-xl">
+                
+                <header class="mb-6 flex items-center justify-between px-2">
+                    <div>
+                        <h2 class="text-2xl font-extrabold text-cielo-dark">Cocina / Pedidos</h2>
+                        <p class="text-cielo-dark/60 text-sm font-medium">Gestión en tiempo real</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="relative flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        </span>
+                        <span class="text-sm font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">Simulador Activo</span>
+                    </div>
+                </header>
+
+                <div class="flex gap-5 h-full overflow-y-hidden items-stretch custom-scrollbar pb-2">
+                    <template x-for="col in columns" :key="col.id">
+                        <div class="w-[320px] flex flex-col flex-shrink-0 bg-white/60 rounded-3xl p-4 border border-white/80 soft-shadow">
+                            <div class="flex items-center justify-between mb-4 px-2">
+                                <h3 class="font-bold text-[15px] flex items-center gap-2">
+                                    <span class="text-xl" x-text="col.icon"></span>
+                                    <span x-text="col.name" :class="col.color"></span>
+                                </h3>
+                                <span class="bg-white text-cielo-dark/60 font-bold text-xs px-2 py-1 rounded-lg border border-gray-100" x-text="orders.filter(o => o.state === col.id).length"></span>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1">
+                                <!-- Cards -->
+                                <template x-for="order in orders.filter(o => o.state === col.id)" :key="order.id">
+                                    <div @click="selectOrder(order)"
+                                         class="bg-white p-4 rounded-2xl cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg border"
+                                         :class="selectedOrder && selectedOrder.id === order.id ? 'border-cielo-pink ring-2 ring-cielo-pink/30 shadow-md' : 'border-gray-100 soft-shadow'">
+                                        
+                                        <div class="flex justify-between items-start mb-2">
+                                            <span class="text-xs font-bold text-gray-400" x-text="'#' + order.id"></span>
+                                            <span class="text-sm font-extrabold text-cielo-dark" x-text="'$' + order.total"></span>
+                                        </div>
+                                        
+                                        <h4 class="font-bold text-sm mb-3 text-cielo-dark flex gap-1 items-center">
+                                            <span x-text="order.item.includes('Tequeño') ? '🧀' : '🍰'"></span>
+                                            <span x-text="order.item" class="truncate"></span>
+                                        </h4>
+                                        
+                                        <div class="flex items-center justify-between text-xs font-medium border-t border-gray-50 pt-3">
+                                            <span class="bg-gray-100 text-gray-500 px-2 py-1 rounded-md" x-text="order.method"></span>
+                                            <span class="text-cielo-blue flex items-center gap-1">
+                                                📱 <span x-text="order.phone"></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Sidebar / Inspector -->
+            <div x-show="selectedOrder" 
+                 x-transition:enter="transition ease-out duration-300 transform"
+                 x-transition:enter-start="opacity-0 translate-x-12"
+                 x-transition:enter-end="opacity-100 translate-x-0"
+                 x-transition:leave="transition ease-in duration-200 transform"
+                 x-transition:leave-start="opacity-100 translate-x-0"
+                 x-transition:leave-end="opacity-0 translate-x-12"
+                 class="w-[400px] bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-6 flex flex-col h-full shadow-2xl border border-white relative">
+                
+                <button @click="selectedOrder = null" class="absolute top-6 right-6 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors">
+                    ✕
+                </button>
+
+                <h2 class="text-xl font-extrabold mb-6">Detalles del Pedido</h2>
+                
+                <div class="flex-1 overflow-y-auto space-y-5 custom-scrollbar pr-2">
+                    
+                    <div class="bg-cielo-pinkLight/50 p-4 rounded-2xl border border-cielo-pink/20">
+                        <p class="text-xs font-bold text-cielo-pink uppercase mb-1">Cliente (WhatsApp)</p>
+                        <p class="text-lg font-bold text-cielo-dark" x-text="'+' + (selectedOrder ? selectedOrder.phone : '')"></p>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <p class="text-xs font-bold text-gray-500 uppercase mb-2">Resumen</p>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-sm" x-text="selectedOrder ? selectedOrder.item : ''"></span>
+                            <span class="font-extrabold text-sm" x-text="selectedOrder ? '$' + selectedOrder.total : ''"></span>
+                        </div>
+                        <p class="text-sm text-gray-500">Masa premium, full queso.</p>
+                    </div>
+                    
+                    <!-- Simulación de OCR y Pago -->
+                    <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs font-bold text-cielo-dark uppercase flex gap-1 items-center">
+                                🧾 Validación de Pago
+                            </p>
+                            <button x-show="selectedOrder && selectedOrder.state === 'recibido'"
+                                    @click="simulateOCR()"
+                                    :disabled="isProcessingOcr"
+                                    class="bg-cielo-crema text-cielo-dark font-bold text-[10px] uppercase px-3 py-1.5 rounded-lg hover:brightness-95 transition-all disabled:opacity-50">
+                                <span x-text="isProcessingOcr ? 'Procesando...' : 'Verificar Pago'"></span>
+                            </button>
+                        </div>
+                        
+                        <div x-show="ocrData" class="bg-green-50 border border-green-200 p-3 rounded-xl">
+                            <p class="text-xs font-bold text-green-600 mb-1 flex items-center gap-1">✓ Transferencia Confirmada</p>
+                            <div class="text-[11px] text-green-800 font-mono">
+                                Monto: $<span x-text="ocrData ? ocrData.amount : ''"></span><br>
+                                Ref: <span x-text="ocrData ? ocrData.ref : ''"></span><br>
+                                Banco: Mercantil
+                            </div>
+                        </div>
+
+                        <div x-show="!ocrData && selectedOrder && selectedOrder.state === 'recibido'" class="h-20 bg-gray-50 border border-dashed border-gray-200 rounded-xl flex items-center justify-center text-xs text-gray-400 font-medium">
+                            Esperando captura de transferencia...
+                        </div>
+                        
+                        <div x-show="selectedOrder && selectedOrder.state !== 'recibido' && !ocrData" class="h-10 bg-green-50 border border-green-200 rounded-xl flex items-center justify-center text-xs text-green-600 font-bold">
+                            Pago Validado Previamente ✓
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de Acción -->
+                <div class="pt-4 border-t border-gray-100 space-y-3 mt-auto">
+                    <button x-show="selectedOrder && selectedOrder.state === 'recibido' && ocrData"
+                            @click="updateOrderState('preparando')"
+                            class="w-full bg-green-500 hover:bg-green-600 text-white font-extrabold py-3.5 rounded-xl transition-transform transform hover:-translate-y-1 soft-shadow">
+                        Cocina: Preparar Orden
+                    </button>
+                    
+                    <button x-show="selectedOrder && selectedOrder.state === 'preparando'"
+                            @click="updateOrderState('encamino')"
+                            class="w-full bg-cielo-blue hover:bg-blue-400 text-white font-extrabold py-3.5 rounded-xl transition-transform transform hover:-translate-y-1 soft-shadow">
+                        Despachar Delivery 🛵
+                    </button>
+
+                    <button x-show="selectedOrder && selectedOrder.state === 'encamino'"
+                            @click="updateOrderState('entregado')"
+                            class="w-full bg-cielo-pink hover:bg-pink-400 text-white font-extrabold py-3.5 rounded-xl transition-transform transform hover:-translate-y-1 soft-shadow">
+                        Marcar como Entregado ✅
+                    </button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MAIN ALPINE LOGIC -->
+    <script>
+        function cieloApp() {
+            return {
+                view: 'landing', // 'landing' or 'admin'
+                columns: [
+                    { id: "recibido", name: "Recibido", icon: "📩", color: "text-gray-500" },
+                    { id: "preparando", name: "Preparando", icon: "🧑‍🍳", color: "text-cielo-crema" },
+                    { id: "encamino", name: "En Camino", icon: "🛵", color: "text-cielo-blue" },
+                    { id: "entregado", name: "Entregado", icon: "✅", color: "text-cielo-pink" }
+                ],
+                orders: [],
+                
+                async init() {
+                    // Cargar la primera vez
+                    await this.fetchOrders();
+                    // Interfaz real-time mediante long polling / interval
+                    setInterval(() => this.fetchOrders(), 3500);
+                },
+
+                async fetchOrders() {
+                    try {
+                        const res = await fetch('/api/orders');
+                        if (res.ok) {
+                            this.orders = await res.json();
+                        }
+                    } catch (e) {
+                        console.error("No se pudo conectar a la base de datos", e);
+                    }
+                },
+                menuItems: [
+                    { title: "Mix Fiestero", emoji: "🎉", desc: "15 tequeños, 15 pastelitos, 15 empanaditas.", price: 38000, theme: "blue" },
+                    { title: "Tequeños (Docena)", emoji: "🧀", desc: "12 deliciosos tequeños doraditos para dipear.", price: 20000, theme: "pink" },
+                    { title: "25 Tequeños Fiesta", emoji: "🎊", desc: "Bandeja para disfrutar en reuniones largas.", price: 21000, theme: "crema" },
+                    { title: "Empanadas (x unidad)", emoji: "🥟", desc: "Carne Mechada, Pollo, Cazón o Papa con Queso.", price: 3000, theme: "pink" },
+                    { title: "Pasteles (x unidad)", emoji: "🥐", desc: "Pizza, Pollo, Carne o Papa con Queso.", price: 2000, theme: "blue" },
+                    { title: "Mandocas (x unidad)", emoji: "🥨", desc: "Auténticas mandocas.", price: 2000, theme: "crema" }
+                ],
+                selectedOrder: null,
+                ocrData: null,
+                isProcessingOcr: false,
+
+                // Simulate creation of a new order from landing
+                createTestOrder(itemObj) {
+                    const newId = "CL-" + Math.floor(1000 + Math.random() * 9000);
+                    const newOrder = {
+                        id: newId,
+                        item: itemObj.title,
+                        total: itemObj.price,
+                        method: "Transferencia",
+                        phone: "549110000" + Math.floor(1000 + Math.random()*9000),
+                        state: "recibido"
+                    };
+                    // Insert at beginning
+                    this.orders.unshift(newOrder);
+                    
+                    alert(`¡Pedido de ${itemObj.title} simulado con éxito!\nPuedes ir a la pestaña 'Admin Kanban' para gestionarlo.`);
+                },
+
+                selectOrder(order) {
+                    this.selectedOrder = order;
+                    this.ocrData = null; // Reset verifier
+                },
+
+                async updateOrderState(newState) {
+                    if (!this.selectedOrder) return;
+                    
+                    try {
+                        const res = await fetch('/api/orders/' + this.selectedOrder.id + '/state', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ state: newState })
+                        });
+                        
+                        if (res.ok) {
+                            this.selectedOrder.state = newState;
+                            this.ocrData = null;
+                            await this.fetchOrders(); // refrescar
+                        }
+                    } catch (e) {
+                        console.error("Error al actualizar la base de datos", e);
+                        alert("No pudimos conectar con el servidor para actualizar el pedido.");
+                    }
+                },
+
+                simulateOCR() {
+                    this.isProcessingOcr = true;
+                    setTimeout(() => {
+                        this.ocrData = {
+                            amount: this.selectedOrder.total,
+                            ref: "REF-" + Math.floor(10000 + Math.random()*90000)
+                        };
+                        this.isProcessingOcr = false;
+                    }, 1500);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

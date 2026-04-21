@@ -1,19 +1,53 @@
 import os
 import httpx
+import sqlite3
+from typing import List, Optional
+from pydantic import BaseModel
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import uuid
 
 load_dotenv()
 
-app = FastAPI(title="Cielo Food House - WhatsApp Bot MVP")
+app = FastAPI(title="Cielo Food House - WhatsApp Bot & Kanban MVP")
+
+# Habilitar CORS para permitir fetch interactivo si hace falta
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "cielo_secret_token")
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN", "").replace("Bearer ", "").strip()
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID", "")
 
-# --- MEMORIA Y ESTADOS SIMULADOS ---
-# En un entorno real, esto iría en Redis o PostgreSQL (como tu app anterior).
+# --- INICIALIZACIÓN DE BASE DE DATOS (SQLite) ---
+DB_FILE = "cielo.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS cielo_orders (
+            id TEXT PRIMARY KEY,
+            item TEXT NOT NULL,
+            total REAL NOT NULL,
+            method TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            state TEXT NOT NULL DEFAULT 'recibido'
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# --- MEMORIA RAM SIMULADA PARA CARRITOS ---
 USER_STATES = {}
 USER_CARTS = {}
 
@@ -21,7 +55,7 @@ MENU = {
     "1": {"name": "Mix Fiestero", "price": 38000},
     "2": {"name": "Docena de Tequeños", "price": 20000},
     "3": {"name": "25 Tequeños de Fiesta", "price": 21000},
-    "4": {"name": "Empanadas (Pollo/Carne/Cazón)", "price": 3000},
+    "4": {"name": "Empanadas", "price": 3000},
     "5": {"name": "Pasteles Andinos", "price": 2000},
     "6": {"name": "Mandocas", "price": 2000}
 }
@@ -50,8 +84,20 @@ def format_cart(cart):
     text += f"\n*TOTAL:* ${calculate_total(cart)}\n"
     return text
 
+def save_order_to_db(items_summary: str, total_price: float, method: str, phone: str):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    # Generar un ID corto pero único referenciando a Cielo
+    new_id = "CL-" + str(uuid.uuid4().hex[:5]).upper()
+    cursor.execute('''
+        INSERT INTO cielo_orders (id, item, total, method, phone, state)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (new_id, items_summary, total_price, method, phone, "recibido"))
+    conn.commit()
+    conn.close()
+
 def process_whatsapp_state(sender_id: str, message_text: str):
-    """Máquina de Estados Conversacional (Bot) para toma de pedidos"""
+    """Máquina de Estados Conversacional (Bot)"""
     
     current_state = USER_STATES.get(sender_id, "START")
     text_input = message_text.strip().lower()
@@ -121,39 +167,32 @@ def process_whatsapp_state(sender_id: str, message_text: str):
             return "Opción inválida. Elige un número del 1 al 3."
 
     elif current_state in ["AWAITING_ADDRESS", "AWAITING_RECEIPT"]:
-        total = calculate_total(USER_CARTS.get(sender_id, []))
+        cart = USER_CARTS.get(sender_id, [])
+        total = calculate_total(cart)
         method = USER_STATES.get(f"{sender_id}_payment")
         
-        # Simulación: Aquí es donde enviaríamos la petición HTTP POST a FastAPI para pintarlo en el tablero Canvas / Kanban Base de Datos
-        print(f"[NUEVO PEDIDO] WhatsApp: {sender_id} | Total: ${total} | Pago: {method}")
+        # Generar un resumen de qué se compró en texto
+        items_summary = ", ".join([f"{i['qty']}x {i['name']}" for i in cart])
+        if len(items_summary) == 0: items_summary = "Orden vacía"
+        
+        # Inserción en Base de Datos Real SQLite!
+        save_order_to_db(items_summary, total, method, sender_id)
         
         USER_STATES[sender_id] = "START"
         USER_CARTS[sender_id] = []
-        return "¡Pedido Confirmado! ✅ Tu orden ha entrado directamente a nuestra cocina. Pronto nos pondremos en contacto contigo si falta algún detalle. ¡Gracias por elegir el buen sabor!"
+        
+        return "¡Pedido Confirmado! ✅ Tu orden ha entrado directamente en la pantalla de nuestra cocina. Pronto nos pondremos en contacto contigo si falta algún detalle. ¡Gracias por elegir el buen sabor!"
 
     # Fallback
     USER_STATES[sender_id] = "START"
     return "Ups, me perdí. Vamos de nuevo... Escribe cualquier cosa para empezar."
 
 
-# --- ENDPOINTS FASTAPI (WEBHOOK META) ---
-
-@app.get("/api/whatsapp/webhook")
-async def verify_webhook(request: Request):
-    """Endpoint para autenticar Webhook de Meta (WhatsApp Cloud API)."""
-    hub_mode = request.query_params.get("hub.mode")
-    hub_challenge = request.query_params.get("hub.challenge")
-    hub_verify_token = request.query_params.get("hub.verify_token")
-
-    if hub_mode == "subscribe" and hub_verify_token == VERIFY_TOKEN:
-        return PlainTextResponse(str(hub_challenge))
-    raise HTTPException(status_code=403, detail="Token no válido")
-
-
+# --- FUNCION ALERTA WHATSAPP (BOTON) ---
 async def send_whatsapp_message(to_number: str, text: str):
     """Envia mensaje HTTP a Graph API de Meta."""
     if not WHATSAPP_TOKEN or not PHONE_NUMBER_ID:
-        print(f"[SIMULADO EN LOCAL - NO KEY] Enviar a {to_number}: {text}")
+        print(f"[NO KEYS EN RAILWAY] Simulando envío a {to_number}: {text}")
         return
 
     url = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
@@ -177,12 +216,20 @@ async def send_whatsapp_message(to_number: str, text: str):
         except Exception as e:
             print(f"Error HTTP enviando a GraphAPI: {e}")
 
+# --- WEBHOOK ENDPOINTS ---
+@app.get("/api/whatsapp/webhook")
+async def verify_webhook(request: Request):
+    hub_mode = request.query_params.get("hub.mode")
+    hub_challenge = request.query_params.get("hub.challenge")
+    hub_verify_token = request.query_params.get("hub.verify_token")
+
+    if hub_mode == "subscribe" and hub_verify_token == VERIFY_TOKEN:
+        return PlainTextResponse(str(hub_challenge))
+    raise HTTPException(status_code=403, detail="Token no válido")
 
 @app.post("/api/whatsapp/webhook")
 async def receive_webhook(request: Request):
-    """Recibe mensajes de los usuarios y activa la Máquina de Estados."""
     data = await request.json()
-    
     try:
         entry = data.get("entry", [])[0]
         changes = entry.get("changes", [])[0]
@@ -192,13 +239,9 @@ async def receive_webhook(request: Request):
         if messages:
             message = messages[0]
             sender_id = message.get("from")
-            # Extraer texto de forma resiliente
             msg_text = message.get("text", {}).get("body", "IMAGEN/DOCUMENTO")
             
-            # 1. Calcular nueva respuesta según estado
             response_text = process_whatsapp_state(sender_id, msg_text)
-            
-            # 2. Enviar respuesta real a WhatsApp
             await send_whatsapp_message(sender_id, response_text)
             
     except Exception as e:
@@ -206,8 +249,83 @@ async def receive_webhook(request: Request):
         
     return {"status": "success"}
 
+# --- KANBAN FRONTEND + API REST ENDPOINTS ---
+
+class StateUpdate(BaseModel):
+    state: str
+
+@app.get("/api/orders")
+def get_orders():
+    """Devuelve las ordenes registradas en SQLite en tiempo real"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, item, total, method, phone, state FROM cielo_orders ORDER BY rowid DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    orders = []
+    for r in rows:
+        orders.append({
+            "id": r[0],
+            "item": r[1],
+            "total": r[2],
+            "method": r[3],
+            "phone": r[4],
+            "state": r[5]
+        })
+    return orders
+
+@app.patch("/api/orders/{order_id}/state")
+async def update_order_state(order_id: str, payload: StateUpdate):
+    """Actualiza el estado de una orden desde el Kanban"""
+    valid_states = ["recibido", "preparando", "encamino", "entregado"]
+    if payload.state not in valid_states:
+        raise HTTPException(status_code=400, detail="Estado inválido")
+        
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    # Extraer el teléfono antes de actualizar para enviar notificación
+    cursor.execute("SELECT phone FROM cielo_orders WHERE id = ?", (order_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Orden no encontrada")
+        
+    cursor.execute("UPDATE cielo_orders SET state = ? WHERE id = ?", (payload.state, order_id))
+    conn.commit()
+    conn.close()
+    
+    phone = row[0]
+    
+    # Enviar notificaciones de actualización al usuario usando Graph API
+    if payload.state == "preparando":
+        await send_whatsapp_message(phone, f"👨‍🍳 ¡Tu pedido ha entrado a cocina! Ya mismo lo estamos preparando.")
+    elif payload.state == "encamino":
+        await send_whatsapp_message(phone, f"🛵 ¡Tu pedido ya va en camino hacia ti! Atento al repartidor.")
+    elif payload.state == "entregado":
+        await send_whatsapp_message(phone, f"✅ ¡Pedido entregado! Muchas gracias por confiar en Cielo Food House.")
+        
+    return {"status": "success", "new_state": payload.state}
+
+@app.get("/")
+def serve_landing():
+    """Aloja la Landing Provisional Próximamente en la página principal"""
+    if os.path.exists("coming_soon.html"):
+        return FileResponse("coming_soon.html")
+    # Redirección de respaldo
+    if os.path.exists("cielo_food_house.html"):
+        return FileResponse("cielo_food_house.html")
+    return PlainTextResponse("El archivo coming_soon.html no fue subido al servidor.")
+
+@app.get("/kanban")
+def serve_kanban():
+    """Aloja el Frontend Kanban de administración"""
+    if os.path.exists("cielo_food_house.html"):
+        return FileResponse("cielo_food_house.html")
+    return PlainTextResponse("El archivo cielo_food_house.html no fue subido al servidor junto con el bot.")
+
 if __name__ == "__main__":
     import uvicorn
-    # Inicia el bot en el puerto 8000 para poder ser expuesto por ngrok
-    print("Iniciando Bot WhatsApp Cielo Food House...")
     uvicorn.run(app, host="0.0.0.0", port=8000)
