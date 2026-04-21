@@ -309,6 +309,20 @@ async def update_order_state(order_id: str, payload: StateUpdate):
         
     return {"status": "success", "new_state": payload.state}
 
+@app.get("/logo.png")
+def serve_logo_png():
+    if os.path.exists("logo.png"):
+        return FileResponse("logo.png")
+    return PlainTextResponse("not found", status_code=404)
+
+@app.get("/logo.jpg")
+def serve_logo_jpg():
+    if os.path.exists("logo.jpg"):
+        return FileResponse("logo.jpg")
+    elif os.path.exists("logo.jpeg"):
+        return FileResponse("logo.jpeg")
+    return PlainTextResponse("not found", status_code=404)
+
 @app.get("/")
 def serve_landing():
     """Aloja la Landing Provisional Próximamente en la página principal"""
