@@ -228,7 +228,7 @@ async def process_whatsapp_ai(sender_id: str, message_text: str):
         
     if sender_id not in CHAT_SESSIONS:
         chat = client.chats.create(
-            model='gemini-1.5-flash',
+            model='gemini-2.5-flash',
             config=types.GenerateContentConfig(
                 tools=[agregar_al_carrito, finalizar_pedido],
                 system_instruction=SYSTEM_INSTRUCTION,
@@ -259,7 +259,10 @@ async def process_whatsapp_ai(sender_id: str, message_text: str):
 async def send_whatsapp_message(to_number: str, text: str):
     """Envia mensaje HTTP a Graph API de Meta."""
     if not WHATSAPP_TOKEN or not PHONE_NUMBER_ID:
-        print(f"[NO KEYS EN RAILWAY] Simulando envío a {to_number}: {text}")
+        try:
+            print(f"[NO KEYS EN RAILWAY] Simulando envío a {to_number}: {text}")
+        except UnicodeEncodeError:
+            print(f"[NO KEYS EN RAILWAY] Simulando envío a {to_number}: [Texto con Emojis]")
         return
 
     url = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
