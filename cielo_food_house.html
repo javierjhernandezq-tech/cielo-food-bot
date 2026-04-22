@@ -305,11 +305,30 @@
                 ],
                 orders: [],
                 
+                socket: null,
+                
                 async init() {
-                    // Cargar la primera vez
                     await this.fetchOrders();
-                    // Interfaz real-time mediante long polling / interval
-                    setInterval(() => this.fetchOrders(), 3500);
+                    
+                    // Conectar al WebSocket del Backend
+                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    this.socket = new WebSocket(wsProtocol + '//' + window.location.host + '/ws/kanban');
+
+                    this.socket.onmessage = (event) => {
+                        const updatedOrder = JSON.parse(event.data);
+                        // Buscar si la orden ya existe
+                        const index = this.orders.findIndex(o => o.id === updatedOrder.id);
+                        if (index !== -1) {
+                            this.orders[index] = updatedOrder; // Actualiza estado
+                        } else {
+                            this.orders.unshift(updatedOrder); // Nueva orden
+                        }
+                        
+                        // Actualizar la orden seleccionada si corresponde
+                        if (this.selectedOrder && this.selectedOrder.id === updatedOrder.id) {
+                            this.selectedOrder = updatedOrder;
+                        }
+                    };
                 },
 
                 async fetchOrders() {

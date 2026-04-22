@@ -1,19 +1,23 @@
 import os
 import httpx
 import sqlite3
+import json
+import uuid
 from typing import List, Optional
 from pydantic import BaseModel
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-import uuid
+
+# --- IMPORTS DE GOOGLE GENAI ---
+from google import genai
+from google.genai import types
 
 load_dotenv()
 
 app = FastAPI(title="Cielo Food House - WhatsApp Bot & Kanban MVP")
 
-# Habilitar CORS para permitir fetch interactivo si hace falta
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,6 +29,10 @@ app.add_middleware(
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "cielo_secret_token")
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN", "").replace("Bearer ", "").strip()
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+# Cliente Gemini
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 # --- INICIALIZACIÓN DE BASE DE DATOS (SQLite) ---
 DB_FILE = "cielo.db"
@@ -48,7 +56,6 @@ def init_db():
 init_db()
 
 # --- MEMORIA RAM SIMULADA PARA CARRITOS ---
-USER_STATES = {}
 USER_CARTS = {}
 
 # --- CATÁLOGO ESTRUCTURADO Y ESCALABLE (AI-READY) ---
@@ -56,203 +63,197 @@ MENU_CATALOG = {
     "1": {
         "id": "mix_fiestero", "name": "Mix Fiestero", "price": 38000, "type": "configurable",
         "desc": "15 mini tequeños, 15 mini pastelitos, 15 mini empanaditas",
-        "options_title": "El Mix Fiestero trae pastelitos y empanaditas.\n¿De qué sabor deseas sus proteínas?",
-        "options": {"1": "Todo Pollo", "2": "Todo Carne Picada", "3": "Mitad y Mitad"}
+        "options": ["Todo Pollo", "Todo Carne Picada", "Mitad y Mitad"]
     },
     "2": {
         "id": "tequenos", "name": "Tequeños", "type": "category",
-        "items": {"1": {"name": "Docena de Tequeños", "price": 20000}, "2": {"name": "25 Tequeños de fiesta", "price": 21000}}
+        "items": {"Docena de Tequeños": 20000, "25 Tequeños de fiesta": 21000}
     },
     "3": {
         "id": "mandocas", "name": "Mandocas (x unidad)", "price": 2000, "type": "simple"
     },
     "4": {
         "id": "pasteles", "name": "Pasteles", "type": "category",
-        "items": {"1": {"name": "Pastel de Pizza", "price": 2000}, "2": {"name": "Pastel de Pollo", "price": 2000}, "3": {"name": "Pastel de Carne", "price": 2000}, "4": {"name": "Pastel de Papa con queso", "price": 2000}}
+        "items": {"Pastel de Pizza": 2000, "Pastel de Pollo": 2000, "Pastel de Carne": 2000, "Pastel de Papa con queso": 2000}
     },
     "5": {
         "id": "empanadas", "name": "Empanadas", "type": "category",
-        "items": {"1": {"name": "Empanada de Pollo", "price": 3000}, "2": {"name": "Empanada de Carne Picada", "price": 3000}, "3": {"name": "Empanada de Carne Mechada", "price": 3000}, "4": {"name": "Empanada de Cazón", "price": 3000}, "5": {"name": "Empanada Papa con queso", "price": 3000}}
+        "items": {"Empanada de Pollo": 3000, "Empanada de Carne Picada": 3000, "Empanada de Carne Mechada": 3000, "Empanada de Cazón": 3000, "Empanada Papa con queso": 3000}
     },
     "6": {
         "id": "bebidas", "name": "Bebidas", "type": "category",
-        "items": {"1": {"name": "Malta 354ml", "price": 1800}, "2": {"name": "Uvita 500ml", "price": 1900}, "3": {"name": "Colita 500 ml", "price": 1900}}
+        "items": {"Malta 354ml": 1800, "Uvita 500ml": 1900, "Colita 500 ml": 1900}
     },
     "7": {
         "id": "adicionales", "name": "Adicionales", "type": "category",
-        "items": {"1": {"name": "Salsa", "price": 2000}}
+        "items": {"Salsa": 2000}
     }
 }
 
-PAYMENT_METHODS = {
-    "1": "Mercado Pago",
-    "2": "Efectivo",
-    "3": "Transferencia Bancaria"
-}
+PAYMENT_METHODS = ["Mercado Pago", "Efectivo", "Transferencia Bancaria"]
 
-def format_menu():
-    text = "☁️ *CIELO FOOD HOUSE - MENÚ* ☁️\n"
-    text += "Momentos que saben a Venezuela 🇻🇪\n\n"
-    for k, v in MENU_CATALOG.items():
-        if v["type"] in ["simple", "configurable"]:
-            text += f"*{k}.* {v['name']} - ${v['price']}\n"
-        else:
-            text += f"*{k}.* {v['name']}\n"
-    text += "\n📍 Escribe el número de la categoría que deseas ver o pedir:"
-    return text
+# --- WEBSOCKETS KANBAN ---
+class KanbanConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
 
-def calculate_total(cart):
-    return sum(item["price"] * item["qty"] for item in cart)
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
 
-def format_cart(cart):
-    text = "🛒 *TU CARRITO:*\n"
-    for item in cart:
-        text += f"- {item['qty']}x {item['name']} = ${item['price'] * item['qty']}\n"
-    text += f"\n*TOTAL:* ${calculate_total(cart)}\n"
-    return text
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
 
-def save_order_to_db(items_summary: str, total_price: float, method: str, phone: str):
+    async def broadcast_order(self, order_data: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(order_data)
+            except:
+                pass
+
+kanban_manager = KanbanConnectionManager()
+
+@app.websocket("/ws/kanban")
+async def websocket_kanban(websocket: WebSocket):
+    await kanban_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        kanban_manager.disconnect(websocket)
+
+# --- HERRAMIENTAS PARA GEMINI ---
+def agregar_al_carrito(telefono: str, producto: str, cantidad: int, precio_unitario: float) -> str:
+    """Registra un producto en el carrito del cliente.
+    Args:
+        telefono: El número de teléfono del cliente (debe pasarse siempre).
+        producto: El nombre descriptivo del producto y su configuración (ej. "Mix Fiestero (Todo Pollo)").
+        cantidad: Cantidad de este producto.
+        precio_unitario: Precio por unidad según el catálogo.
+    """
+    if telefono not in USER_CARTS:
+        USER_CARTS[telefono] = []
+        
+    subtotal = precio_unitario * cantidad
+    USER_CARTS[telefono].append({
+        "name": producto,
+        "price": precio_unitario,
+        "qty": cantidad
+    })
+    
+    total = sum(item["price"] * item["qty"] for item in USER_CARTS[telefono])
+    
+    return json.dumps({
+        "status": "success",
+        "producto": producto,
+        "cantidad": cantidad,
+        "subtotal": subtotal,
+        "mensaje": f"Se agregaron {cantidad} {producto} al carrito.",
+        "total_carrito_actual": total
+    })
+
+def finalizar_pedido(telefono: str, metodo_pago: str) -> str:
+    """Finaliza el pedido actual del cliente y lo guarda en la base de datos.
+    Se debe llamar SOLO cuando el cliente ha confirmado su carrito, ha elegido un método de pago y ha proporcionado su dirección.
+    Args:
+        telefono: El número de teléfono del cliente.
+        metodo_pago: El método de pago elegido (Efectivo, Mercado Pago, Transferencia Bancaria).
+    """
+    cart = USER_CARTS.get(telefono, [])
+    if not cart:
+        return json.dumps({"status": "error", "mensaje": "El carrito está vacío."})
+        
+    total_price = sum(item["price"] * item["qty"] for item in cart)
+    items_summary = ", ".join([f"{i['qty']}x {i['name']}" for i in cart])
+    
+    new_id = "CL-" + str(uuid.uuid4().hex[:5]).upper()
+    
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    new_id = "CL-" + str(uuid.uuid4().hex[:5]).upper()
     cursor.execute('''
         INSERT INTO cielo_orders (id, item, total, method, phone, state)
         VALUES (?, ?, ?, ?, ?, ?)
-    ''', (new_id, items_summary, total_price, method, phone, "recibido"))
+    ''', (new_id, items_summary, total_price, metodo_pago, telefono, "recibido"))
     conn.commit()
     conn.close()
-
-def process_whatsapp_state(sender_id: str, message_text: str):
-    """Máquina de Estados Conversacional Dinámica"""
     
-    current_state = USER_STATES.get(sender_id, "START")
-    text_input = message_text.strip().lower()
+    # Vaciar carrito
+    USER_CARTS[telefono] = []
     
-    if current_state == "START":
-        USER_STATES[sender_id] = "PICKING_CATEGORY"
-        USER_CARTS[sender_id] = []
-        return f"¡Hola! Bienvenido a *Cielo Food House* 🎉.\n\n{format_menu()}"
-        
-    elif current_state == "PICKING_CATEGORY":
-        if text_input in MENU_CATALOG:
-            cat = MENU_CATALOG[text_input]
-            USER_STATES[f"{sender_id}_cat_key"] = text_input
-            
-            if cat["type"] == "simple":
-                USER_STATES[sender_id] = "QUANTITY"
-                USER_STATES[f"{sender_id}_temp_item"] = {"name": cat["name"], "price": cat["price"]}
-                return f"Has elegido *{cat['name']}*.\n¿Cuántas unidades deseas llevar? Escribe en números (ej: 2)."
-                
-            elif cat["type"] == "configurable":
-                USER_STATES[sender_id] = "PICKING_CONFIG"
-                msg = f"Has elegido *{cat['name']}*.\n{cat['options_title']}\n\n"
-                for k, opt in cat["options"].items():
-                    msg += f"*{k}.* {opt}\n"
-                msg += "\nEnvía el número de tu elección:"
-                return msg
-                
-            elif cat["type"] == "category":
-                USER_STATES[sender_id] = "PICKING_SUBCATEGORY"
-                msg = f"Menú de *{cat['name']}*:\n\n"
-                for k, item in cat["items"].items():
-                    msg += f"*{k}.* {item['name']} - ${item['price']}\n"
-                msg += "\nQué opción deseas? Envía el número:"
-                return msg
-        else:
-            return "Opción inválida. 🤔 Por favor, escríbeme el **número** de arriba (ej: 1, 2, 3)."
+    # IMPORTANTE: No podemos hacer await aquí directamente porque es una función síncrona llamada por Gemini.
+    # En su lugar, dejaremos un flag en el estado para emitir el WS luego, o mejor, 
+    # FastAPI lo permite si usamos run_in_threadpool o asyncio.create_task si tuvieramos el loop.
+    # Por simplicidad, devolveremos el new_id y el caller se encarga del WS o lo emitimos por un hack.
+    
+    return json.dumps({
+        "status": "success", 
+        "order_id": new_id,
+        "item": items_summary,
+        "total": total_price,
+        "method": metodo_pago,
+        "phone": telefono,
+        "state": "recibido",
+        "mensaje": f"Pedido {new_id} confirmado exitosamente."
+    })
 
-    elif current_state == "PICKING_CONFIG":
-        cat_key = USER_STATES.get(f"{sender_id}_cat_key")
-        cat = MENU_CATALOG[cat_key]
-        if text_input in cat["options"]:
-            USER_STATES[sender_id] = "QUANTITY"
-            chosen_flavor = cat["options"][text_input]
-            final_name = f"{cat['name']} ({chosen_flavor})"
-            USER_STATES[f"{sender_id}_temp_item"] = {"name": final_name, "price": cat["price"]}
-            return f"Perfecto, {chosen_flavor}.\n¿Cuántos *{cat['name']}* deseas llevar? Escribe en números (ej: 1 o 2)."
-        else:
-            return "Opción inválida. Envía el número correspondiente a la opción."
+SYSTEM_INSTRUCTION = f"""
+Eres el asistente virtual de Cielo Food House en Campana. 
+Atiendes de Lunes a Viernes 08:30-22:00 y fines de semana 08:30-23:00.
+Tu objetivo es tomar los pedidos de los clientes, guiarlos por el menú de forma amigable, estilo venezolano (usa emojis, sé cálido).
 
-    elif current_state == "PICKING_SUBCATEGORY":
-        cat_key = USER_STATES.get(f"{sender_id}_cat_key")
-        cat = MENU_CATALOG[cat_key]
-        if text_input in cat["items"]:
-            item = cat["items"][text_input]
-            USER_STATES[sender_id] = "QUANTITY"
-            USER_STATES[f"{sender_id}_temp_item"] = {"name": item["name"], "price": item["price"]}
-            return f"Elegiste *{item['name']}*.\n¿Cuántas unidades deseas llevar? Envía el número:"
-        else:
-            return "Opción inválida. Envía el número correspondiente al menú."
+Aquí está nuestro Catálogo:
+{json.dumps(MENU_CATALOG, indent=2, ensure_ascii=False)}
+Métodos de pago aceptados: {PAYMENT_METHODS}
 
-    elif current_state == "QUANTITY":
-        if not text_input.isdigit() or int(text_input) <= 0:
-            return "Por favor ingresa un número válido mayor a cero."
-            
-        qty = int(text_input)
-        item = USER_STATES.get(f"{sender_id}_temp_item")
-        
-        cart = USER_CARTS.get(sender_id, [])
-        cart.append({"name": item["name"], "price": item["price"], "qty": qty})
-        USER_CARTS[sender_id] = cart
-        
-        USER_STATES[sender_id] = "MORE_ITEMS"
-        
-        msg = f"✅ ¡Agregado a tu pedido! 🤤\n\n{format_cart(cart)}\n"
-        msg += "¿Deseas agregar algo más o proceder al pago?\n"
-        msg += "Escribe *1* para PAGAR\n"
-        msg += "Escribe *2* para AGREGAR MÁS PRODUCTOS"
-        return msg
+Reglas:
+1. Siempre muestra el menú si el usuario saluda o pregunta qué hay.
+2. Si un producto tiene "options" (como el Mix Fiestero), PREGUNTA al usuario qué opción desea antes de agregarlo al carrito.
+3. SIEMPRE usa la herramienta `agregar_al_carrito` para añadir items al pedido. Pide la cantidad al usuario. No calcules totales tú mismo. 
+4. El argumento `telefono` de las herramientas debe ser siempre el número de teléfono con el que estás hablando.
+5. Después de agregar, pregunta si desean algo más o proceder a pagar.
+6. Para pagar, pregunta el método de pago y la DIRECCIÓN EXACTA de envío (o si retiran en el local).
+7. Cuando el usuario confirme el pago y dirección, usa la herramienta `finalizar_pedido`.
 
-    elif current_state == "MORE_ITEMS":
-        if text_input == "2":
-            USER_STATES[sender_id] = "PICKING_CATEGORY"
-            return format_menu()
-        elif text_input == "1":
-            USER_STATES[sender_id] = "PAYMENT_METHOD"
-            msg = "Excelente. 💳 ¿Qué método de pago prefieres?\n\n"
-            for k, v in PAYMENT_METHODS.items():
-                msg += f"*{k}.* {v}\n"
-            msg += "\nResponder con el número de opción."
-            return msg
-        else:
-            return "Opción inválida. Escribe 1 para pagar o 2 para agregar más."
+Aviso Legal: Nunca inventes precios ni productos. Limítate al catálogo.
+"""
 
-    elif current_state == "PAYMENT_METHOD":
-        if text_input in PAYMENT_METHODS:
-            method_name = PAYMENT_METHODS[text_input]
-            USER_STATES[f"{sender_id}_payment"] = method_name
-            
-            if text_input == "2": 
-                USER_STATES[sender_id] = "AWAITING_ADDRESS"
-                return "Has seleccionado *Efectivo*. 💵 Por favor, envíanos la Dirección de envío exacta o indica si Retiras en el Local."
-            else: 
-                USER_STATES[sender_id] = "AWAITING_RECEIPT"
-                if text_input == "1":
-                    return "Alias Mercado Pago: cielofood\nCBU: 00000031200000000000\n\n*Transferí, y envíame tu Dirección de envío exacta y confirmaremos el pago al instante.*"
-                else: 
-                    return "CBU Cuenta Galicia: 00000031200000000000\nAlias: cielofood\n\n*Transferí, y envíame tu Dirección de envío exacta y confirmaremos el pago al instante.*"
-        else:
-            return "Opción inválida. Elige un número del 1 al 3."
+# Historial de chats para mantener contexto
+CHAT_SESSIONS = {}
 
-    elif current_state in ["AWAITING_ADDRESS", "AWAITING_RECEIPT"]:
-        cart = USER_CARTS.get(sender_id, [])
-        total = calculate_total(cart)
-        method = USER_STATES.get(f"{sender_id}_payment")
+async def process_whatsapp_ai(sender_id: str, message_text: str):
+    """Procesamiento con Gemini"""
+    if not client:
+        return "El sistema de IA no está configurado (falta GEMINI_API_KEY). Por favor contacta al administrador."
         
-        items_summary = ", ".join([f"{i['qty']}x {i['name']}" for i in cart])
-        if len(items_summary) == 0: items_summary = "Orden vacía"
-        
-        save_order_to_db(items_summary, total, method, sender_id)
-        
-        USER_STATES[sender_id] = "START"
-        USER_CARTS[sender_id] = []
-        
-        return "¡Pedido Confirmado! ✅🚀 Tu orden ha entrado directamente en la pantalla de nuestra cocina. Pronto nos pondremos en contacto contigo o el repartidor si falta algún detalle. ¡Gracias por elegir Cielo Food House!"
+    if sender_id not in CHAT_SESSIONS:
+        chat = client.chats.create(
+            model='gemini-1.5-flash',
+            config=types.GenerateContentConfig(
+                tools=[agregar_al_carrito, finalizar_pedido],
+                system_instruction=SYSTEM_INSTRUCTION,
+                temperature=0.3
+            )
+        )
+        CHAT_SESSIONS[sender_id] = chat
+    else:
+        chat = CHAT_SESSIONS[sender_id]
 
-    # Fallback general
-    USER_STATES[sender_id] = "START"
-    return "Ups, me perdí. Vamos de nuevo... Escribe cualquier cosa para empezar a pedir."
-
+    # Pasamos explícitamente que el teléfono del usuario es sender_id
+    prompt = f"El usuario (Teléfono: {sender_id}) dice: {message_text}"
+    
+    try:
+        response = chat.send_message(prompt)
+        # Check if a tool was called and returned an order creation to broadcast via websocket
+        # We can scan the chat history for function calls, but an easier way is 
+        # checking the latest SQLite orders if needed, or if response text contains confirmation.
+        # Actually, when `finalizar_pedido` is called, it inserts into DB. 
+        # We'll just fetch the latest order for this phone in the last few seconds and broadcast if new.
+    except Exception as e:
+        print(f"Error de Gemini: {e}")
+        return "Lo siento, tuve un problema procesando tu mensaje. ¿Puedes repetirlo?"
+        
+    return response.text
 
 # --- FUNCION ALERTA WHATSAPP (BOTON) ---
 async def send_whatsapp_message(to_number: str, text: str):
@@ -274,9 +275,9 @@ async def send_whatsapp_message(to_number: str, text: str):
         "text": {"preview_url": False, "body": text}
     }
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient() as client_http:
         try:
-            r = await client.post(url, headers=headers, json=payload)
+            r = await client_http.post(url, headers=headers, json=payload)
             if r.status_code != 200:
                 print(f"GraphAPI Error: {r.text}")
         except Exception as e:
@@ -293,6 +294,8 @@ async def verify_webhook(request: Request):
         return PlainTextResponse(str(hub_challenge))
     raise HTTPException(status_code=403, detail="Token no válido")
 
+import asyncio
+
 @app.post("/api/whatsapp/webhook")
 async def receive_webhook(request: Request):
     data = await request.json()
@@ -307,22 +310,46 @@ async def receive_webhook(request: Request):
             sender_id = message.get("from")
             msg_text = message.get("text", {}).get("body", "IMAGEN/DOCUMENTO")
             
-            response_text = process_whatsapp_state(sender_id, msg_text)
+            # Obtener cantidad de órdenes antes del procesamiento
+            conn = sqlite3.connect(DB_FILE)
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM cielo_orders WHERE phone=?", (sender_id,))
+            orders_before = cur.fetchone()[0]
+            conn.close()
+            
+            response_text = await process_whatsapp_ai(sender_id, msg_text)
             await send_whatsapp_message(sender_id, response_text)
+            
+            # Revisar si se creó una nueva orden para emitir el WebSocket
+            conn = sqlite3.connect(DB_FILE)
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM cielo_orders WHERE phone=?", (sender_id,))
+            orders_after = cur.fetchone()[0]
+            if orders_after > orders_before:
+                cur.execute("SELECT id, item, total, method, phone, state FROM cielo_orders WHERE phone=? ORDER BY rowid DESC LIMIT 1", (sender_id,))
+                new_order = cur.fetchone()
+                if new_order:
+                    order_data = {
+                        "id": new_order[0],
+                        "item": new_order[1],
+                        "total": new_order[2],
+                        "method": new_order[3],
+                        "phone": new_order[4],
+                        "state": new_order[5]
+                    }
+                    asyncio.create_task(kanban_manager.broadcast_order(order_data))
+            conn.close()
             
     except Exception as e:
         print(f"Error procesando webhook: {e}")
         
     return {"status": "success"}
 
-# --- KANBAN FRONTEND + API REST ENDPOINTS ---
-
 class StateUpdate(BaseModel):
     state: str
 
 @app.get("/api/orders")
 def get_orders():
-    """Devuelve las ordenes registradas en SQLite en tiempo real"""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("SELECT id, item, total, method, phone, state FROM cielo_orders ORDER BY rowid DESC")
@@ -343,7 +370,6 @@ def get_orders():
 
 @app.patch("/api/orders/{order_id}/state")
 async def update_order_state(order_id: str, payload: StateUpdate):
-    """Actualiza el estado de una orden desde el Kanban"""
     valid_states = ["recibido", "preparando", "encamino", "entregado"]
     if payload.state not in valid_states:
         raise HTTPException(status_code=400, detail="Estado inválido")
@@ -351,7 +377,6 @@ async def update_order_state(order_id: str, payload: StateUpdate):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
-    # Extraer el teléfono antes de actualizar para enviar notificación
     cursor.execute("SELECT phone FROM cielo_orders WHERE id = ?", (order_id,))
     row = cursor.fetchone()
     
@@ -361,11 +386,25 @@ async def update_order_state(order_id: str, payload: StateUpdate):
         
     cursor.execute("UPDATE cielo_orders SET state = ? WHERE id = ?", (payload.state, order_id))
     conn.commit()
+    
+    # Broadcast status change
+    cursor.execute("SELECT id, item, total, method, phone, state FROM cielo_orders WHERE id = ?", (order_id,))
+    updated_order = cursor.fetchone()
     conn.close()
+    
+    if updated_order:
+        order_data = {
+            "id": updated_order[0],
+            "item": updated_order[1],
+            "total": updated_order[2],
+            "method": updated_order[3],
+            "phone": updated_order[4],
+            "state": updated_order[5]
+        }
+        await kanban_manager.broadcast_order(order_data)
     
     phone = row[0]
     
-    # Enviar notificaciones de actualización al usuario usando Graph API
     if payload.state == "preparando":
         await send_whatsapp_message(phone, f"👨‍🍳 ¡Tu pedido ha entrado a cocina! Ya mismo lo estamos preparando.")
     elif payload.state == "encamino":
@@ -377,33 +416,24 @@ async def update_order_state(order_id: str, payload: StateUpdate):
 
 @app.get("/logo.png")
 def serve_logo_png():
-    if os.path.exists("logo.png"):
-        return FileResponse("logo.png")
+    if os.path.exists("logo.png"): return FileResponse("logo.png")
     return PlainTextResponse("not found", status_code=404)
 
 @app.get("/logo.jpg")
 def serve_logo_jpg():
-    if os.path.exists("logo.jpg"):
-        return FileResponse("logo.jpg")
-    elif os.path.exists("logo.jpeg"):
-        return FileResponse("logo.jpeg")
+    if os.path.exists("logo.jpg"): return FileResponse("logo.jpg")
+    elif os.path.exists("logo.jpeg"): return FileResponse("logo.jpeg")
     return PlainTextResponse("not found", status_code=404)
 
 @app.get("/")
 def serve_landing():
-    """Aloja la Landing Provisional Próximamente en la página principal"""
-    if os.path.exists("coming_soon.html"):
-        return FileResponse("coming_soon.html")
-    # Redirección de respaldo
-    if os.path.exists("cielo_food_house.html"):
-        return FileResponse("cielo_food_house.html")
+    if os.path.exists("coming_soon.html"): return FileResponse("coming_soon.html")
+    if os.path.exists("cielo_food_house.html"): return FileResponse("cielo_food_house.html")
     return PlainTextResponse("El archivo coming_soon.html no fue subido al servidor.")
 
 @app.get("/kanban")
 def serve_kanban():
-    """Aloja el Frontend Kanban de administración"""
-    if os.path.exists("cielo_food_house.html"):
-        return FileResponse("cielo_food_house.html")
+    if os.path.exists("cielo_food_house.html"): return FileResponse("cielo_food_house.html")
     return PlainTextResponse("El archivo cielo_food_house.html no fue subido al servidor junto con el bot.")
 
 if __name__ == "__main__":
