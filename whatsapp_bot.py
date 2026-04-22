@@ -51,13 +51,37 @@ init_db()
 USER_STATES = {}
 USER_CARTS = {}
 
-MENU = {
-    "1": {"name": "Mix Fiestero", "price": 38000},
-    "2": {"name": "Docena de Tequeños", "price": 20000},
-    "3": {"name": "25 Tequeños de Fiesta", "price": 21000},
-    "4": {"name": "Empanadas", "price": 3000},
-    "5": {"name": "Pasteles Andinos", "price": 2000},
-    "6": {"name": "Mandocas", "price": 2000}
+# --- CATÁLOGO ESTRUCTURADO Y ESCALABLE (AI-READY) ---
+MENU_CATALOG = {
+    "1": {
+        "id": "mix_fiestero", "name": "Mix Fiestero", "price": 38000, "type": "configurable",
+        "desc": "15 mini tequeños, 15 mini pastelitos, 15 mini empanaditas",
+        "options_title": "El Mix Fiestero trae pastelitos y empanaditas.\n¿De qué sabor deseas sus proteínas?",
+        "options": {"1": "Todo Pollo", "2": "Todo Carne Picada", "3": "Mitad y Mitad"}
+    },
+    "2": {
+        "id": "tequenos", "name": "Tequeños", "type": "category",
+        "items": {"1": {"name": "Docena de Tequeños", "price": 20000}, "2": {"name": "25 Tequeños de fiesta", "price": 21000}}
+    },
+    "3": {
+        "id": "mandocas", "name": "Mandocas (x unidad)", "price": 2000, "type": "simple"
+    },
+    "4": {
+        "id": "pasteles", "name": "Pasteles", "type": "category",
+        "items": {"1": {"name": "Pastel de Pizza", "price": 2000}, "2": {"name": "Pastel de Pollo", "price": 2000}, "3": {"name": "Pastel de Carne", "price": 2000}, "4": {"name": "Pastel de Papa con queso", "price": 2000}}
+    },
+    "5": {
+        "id": "empanadas", "name": "Empanadas", "type": "category",
+        "items": {"1": {"name": "Empanada de Pollo", "price": 3000}, "2": {"name": "Empanada de Carne Picada", "price": 3000}, "3": {"name": "Empanada de Carne Mechada", "price": 3000}, "4": {"name": "Empanada de Cazón", "price": 3000}, "5": {"name": "Empanada Papa con queso", "price": 3000}}
+    },
+    "6": {
+        "id": "bebidas", "name": "Bebidas", "type": "category",
+        "items": {"1": {"name": "Malta 354ml", "price": 1800}, "2": {"name": "Uvita 500ml", "price": 1900}, "3": {"name": "Colita 500 ml", "price": 1900}}
+    },
+    "7": {
+        "id": "adicionales", "name": "Adicionales", "type": "category",
+        "items": {"1": {"name": "Salsa", "price": 2000}}
+    }
 }
 
 PAYMENT_METHODS = {
@@ -69,9 +93,12 @@ PAYMENT_METHODS = {
 def format_menu():
     text = "☁️ *CIELO FOOD HOUSE - MENÚ* ☁️\n"
     text += "Momentos que saben a Venezuela 🇻🇪\n\n"
-    for k, v in MENU.items():
-        text += f"*{k}.* {v['name']} - ${v['price']}\n"
-    text += "\n📍 Escribe el número del producto que deseas pedir:"
+    for k, v in MENU_CATALOG.items():
+        if v["type"] in ["simple", "configurable"]:
+            text += f"*{k}.* {v['name']} - ${v['price']}\n"
+        else:
+            text += f"*{k}.* {v['name']}\n"
+    text += "\n📍 Escribe el número de la categoría que deseas ver o pedir:"
     return text
 
 def calculate_total(cart):
@@ -87,7 +114,6 @@ def format_cart(cart):
 def save_order_to_db(items_summary: str, total_price: float, method: str, phone: str):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # Generar un ID corto pero único referenciando a Cielo
     new_id = "CL-" + str(uuid.uuid4().hex[:5]).upper()
     cursor.execute('''
         INSERT INTO cielo_orders (id, item, total, method, phone, state)
@@ -97,24 +123,66 @@ def save_order_to_db(items_summary: str, total_price: float, method: str, phone:
     conn.close()
 
 def process_whatsapp_state(sender_id: str, message_text: str):
-    """Máquina de Estados Conversacional (Bot)"""
+    """Máquina de Estados Conversacional Dinámica"""
     
     current_state = USER_STATES.get(sender_id, "START")
     text_input = message_text.strip().lower()
     
     if current_state == "START":
-        USER_STATES[sender_id] = "PICKING"
+        USER_STATES[sender_id] = "PICKING_CATEGORY"
         USER_CARTS[sender_id] = []
         return f"¡Hola! Bienvenido a *Cielo Food House* 🎉.\n\n{format_menu()}"
         
-    elif current_state == "PICKING":
-        if text_input in MENU:
-            item = MENU[text_input]
-            USER_STATES[sender_id] = "QUANTITY"
-            USER_STATES[f"{sender_id}_temp_item"] = item
-            return f"Seleccionaste *{item['name']}*.\n¿Cuántas cantidades (porciones/unidades) deseas? Escribe en números (ej: 2)."
+    elif current_state == "PICKING_CATEGORY":
+        if text_input in MENU_CATALOG:
+            cat = MENU_CATALOG[text_input]
+            USER_STATES[f"{sender_id}_cat_key"] = text_input
+            
+            if cat["type"] == "simple":
+                USER_STATES[sender_id] = "QUANTITY"
+                USER_STATES[f"{sender_id}_temp_item"] = {"name": cat["name"], "price": cat["price"]}
+                return f"Has elegido *{cat['name']}*.\n¿Cuántas unidades deseas llevar? Escribe en números (ej: 2)."
+                
+            elif cat["type"] == "configurable":
+                USER_STATES[sender_id] = "PICKING_CONFIG"
+                msg = f"Has elegido *{cat['name']}*.\n{cat['options_title']}\n\n"
+                for k, opt in cat["options"].items():
+                    msg += f"*{k}.* {opt}\n"
+                msg += "\nEnvía el número de tu elección:"
+                return msg
+                
+            elif cat["type"] == "category":
+                USER_STATES[sender_id] = "PICKING_SUBCATEGORY"
+                msg = f"Menú de *{cat['name']}*:\n\n"
+                for k, item in cat["items"].items():
+                    msg += f"*{k}.* {item['name']} - ${item['price']}\n"
+                msg += "\nQué opción deseas? Envía el número:"
+                return msg
         else:
-            return "Opción inválida. 🤔 Por favor, escríbeme el **número** del menú que quieres (ej: 1, 2, 3)."
+            return "Opción inválida. 🤔 Por favor, escríbeme el **número** de arriba (ej: 1, 2, 3)."
+
+    elif current_state == "PICKING_CONFIG":
+        cat_key = USER_STATES.get(f"{sender_id}_cat_key")
+        cat = MENU_CATALOG[cat_key]
+        if text_input in cat["options"]:
+            USER_STATES[sender_id] = "QUANTITY"
+            chosen_flavor = cat["options"][text_input]
+            final_name = f"{cat['name']} ({chosen_flavor})"
+            USER_STATES[f"{sender_id}_temp_item"] = {"name": final_name, "price": cat["price"]}
+            return f"Perfecto, {chosen_flavor}.\n¿Cuántos *{cat['name']}* deseas llevar? Escribe en números (ej: 1 o 2)."
+        else:
+            return "Opción inválida. Envía el número correspondiente a la opción."
+
+    elif current_state == "PICKING_SUBCATEGORY":
+        cat_key = USER_STATES.get(f"{sender_id}_cat_key")
+        cat = MENU_CATALOG[cat_key]
+        if text_input in cat["items"]:
+            item = cat["items"][text_input]
+            USER_STATES[sender_id] = "QUANTITY"
+            USER_STATES[f"{sender_id}_temp_item"] = {"name": item["name"], "price": item["price"]}
+            return f"Elegiste *{item['name']}*.\n¿Cuántas unidades deseas llevar? Envía el número:"
+        else:
+            return "Opción inválida. Envía el número correspondiente al menú."
 
     elif current_state == "QUANTITY":
         if not text_input.isdigit() or int(text_input) <= 0:
@@ -129,7 +197,7 @@ def process_whatsapp_state(sender_id: str, message_text: str):
         
         USER_STATES[sender_id] = "MORE_ITEMS"
         
-        msg = f"✅ ¡Agregado! 🤤\n\n{format_cart(cart)}\n"
+        msg = f"✅ ¡Agregado a tu pedido! 🤤\n\n{format_cart(cart)}\n"
         msg += "¿Deseas agregar algo más o proceder al pago?\n"
         msg += "Escribe *1* para PAGAR\n"
         msg += "Escribe *2* para AGREGAR MÁS PRODUCTOS"
@@ -137,32 +205,32 @@ def process_whatsapp_state(sender_id: str, message_text: str):
 
     elif current_state == "MORE_ITEMS":
         if text_input == "2":
-            USER_STATES[sender_id] = "PICKING"
+            USER_STATES[sender_id] = "PICKING_CATEGORY"
             return format_menu()
         elif text_input == "1":
             USER_STATES[sender_id] = "PAYMENT_METHOD"
             msg = "Excelente. 💳 ¿Qué método de pago prefieres?\n\n"
             for k, v in PAYMENT_METHODS.items():
                 msg += f"*{k}.* {v}\n"
-            msg += "\nResponder con el número."
+            msg += "\nResponder con el número de opción."
             return msg
         else:
-            return "Opción inválida. Escribe 1 para pagar o 2 para agregar más cosas."
+            return "Opción inválida. Escribe 1 para pagar o 2 para agregar más."
 
     elif current_state == "PAYMENT_METHOD":
         if text_input in PAYMENT_METHODS:
             method_name = PAYMENT_METHODS[text_input]
             USER_STATES[f"{sender_id}_payment"] = method_name
             
-            if text_input == "2": # Efectivo
+            if text_input == "2": 
                 USER_STATES[sender_id] = "AWAITING_ADDRESS"
-                return "Has seleccionado *Efectivo*. 💵 Por favor, envíanos la dirección de envío exacta o si prefieres pasar a retirar (Take Away)."
-            else: # Mercado Pago / Transferencia
+                return "Has seleccionado *Efectivo*. 💵 Por favor, envíanos la Dirección de envío exacta o indica si Retiras en el Local."
+            else: 
                 USER_STATES[sender_id] = "AWAITING_RECEIPT"
                 if text_input == "1":
-                    return "Alias Mercado Pago: cielofood\nCBU: 00000031200000000000\n\nTransferí y envíame la CAPTURA del comprobante por aquí y tu Dirección de envío."
+                    return "Alias Mercado Pago: cielofood\nCBU: 00000031200000000000\n\n*Transferí, y envíame tu Dirección de envío exacta y confirmaremos el pago al instante.*"
                 else: 
-                    return "CBU Cuenta Galicia: 00000031200000000000\nAlias: cielofood\n\nTransferí y envíame la CAPTURA del comprobante por aquí y tu Dirección de envío."
+                    return "CBU Cuenta Galicia: 00000031200000000000\nAlias: cielofood\n\n*Transferí, y envíame tu Dirección de envío exacta y confirmaremos el pago al instante.*"
         else:
             return "Opción inválida. Elige un número del 1 al 3."
 
@@ -171,21 +239,19 @@ def process_whatsapp_state(sender_id: str, message_text: str):
         total = calculate_total(cart)
         method = USER_STATES.get(f"{sender_id}_payment")
         
-        # Generar un resumen de qué se compró en texto
         items_summary = ", ".join([f"{i['qty']}x {i['name']}" for i in cart])
         if len(items_summary) == 0: items_summary = "Orden vacía"
         
-        # Inserción en Base de Datos Real SQLite!
         save_order_to_db(items_summary, total, method, sender_id)
         
         USER_STATES[sender_id] = "START"
         USER_CARTS[sender_id] = []
         
-        return "¡Pedido Confirmado! ✅ Tu orden ha entrado directamente en la pantalla de nuestra cocina. Pronto nos pondremos en contacto contigo si falta algún detalle. ¡Gracias por elegir el buen sabor!"
+        return "¡Pedido Confirmado! ✅🚀 Tu orden ha entrado directamente en la pantalla de nuestra cocina. Pronto nos pondremos en contacto contigo o el repartidor si falta algún detalle. ¡Gracias por elegir Cielo Food House!"
 
-    # Fallback
+    # Fallback general
     USER_STATES[sender_id] = "START"
-    return "Ups, me perdí. Vamos de nuevo... Escribe cualquier cosa para empezar."
+    return "Ups, me perdí. Vamos de nuevo... Escribe cualquier cosa para empezar a pedir."
 
 
 # --- FUNCION ALERTA WHATSAPP (BOTON) ---
