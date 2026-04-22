@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cielo Food House | Próximamente</title>
+    <title>Cielo Food House | Auténtico Sabor Venezolano</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -23,12 +24,11 @@
                     },
                     animation: {
                         'float': 'float 6s ease-in-out infinite',
-                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     },
                     keyframes: {
                         float: {
                             '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-20px)' },
+                            '50%': { transform: 'translateY(-10px)' },
                         }
                     }
                 }
@@ -37,61 +37,218 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Quicksand', sans-serif; background-color: #fafafa; overflow: hidden;}
+        body { font-family: 'Quicksand', sans-serif; background-color: #fafafa; }
         .glass-panel {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
             box-shadow: 0 8px 32px 0 rgba(245, 169, 188, 0.15);
         }
+        .modal-bg { background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
     </style>
 </head>
-<body class="text-cielo-dark antialiased h-screen w-full flex items-center justify-center relative">
+<body class="text-cielo-dark antialiased" x-data="{ modalOpen: false, modalContent: '' }">
 
-    <!-- FLUID BACKGROUND ELEMENTS -->
-    <div class="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-cielo-pink/30 blur-[120px] animate-pulse-slow"></div>
-    <div class="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-cielo-crema/20 blur-[130px] animate-pulse-slow" style="animation-delay: 2s;"></div>
-    <div class="absolute top-[30%] right-[30%] w-[40%] h-[40%] rounded-full bg-cielo-blue/20 blur-[100px] animate-pulse-slow" style="animation-delay: 1s;"></div>
+    <!-- Navbar -->
+    <nav class="fixed w-full z-50 glass-panel border-b border-cielo-pink/20">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img src="logo.png" alt="Cielo Food House Logo" class="h-10 w-10 rounded-full object-cover border-2 border-cielo-pink" onerror="this.onerror=null; this.src='https://via.placeholder.com/150';">
+                <span class="font-extrabold text-xl text-cielo-dark">Cielo Food House</span>
+            </div>
+            <a href="#menu" class="hidden md:inline-block font-bold text-cielo-dark hover:text-cielo-pink transition-colors">Nuestro Menú</a>
+            <a href="https://wa.me/5491130322122" target="_blank" class="bg-gradient-to-r from-green-400 to-green-500 text-white font-bold py-2 px-4 rounded-full shadow-lg shadow-green-500/30 hover:scale-105 transition-transform text-sm">
+                Pedir por WhatsApp
+            </a>
+        </div>
+    </nav>
 
-    <!-- MAIN CONTENT CARD -->
-    <main class="relative z-10 w-[90%] max-w-lg glass-panel rounded-[3rem] p-10 md:p-14 text-center mx-4 animate-float">
+    <!-- Hero Section -->
+    <section class="relative pt-32 pb-20 px-4 flex items-center justify-center overflow-hidden min-h-[80vh]">
+        <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-cielo-pink/20 blur-[100px]"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-cielo-crema/20 blur-[100px]"></div>
         
-        <!-- LOGO ORB -->
-        <div class="mx-auto w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-cielo-pink to-cielo-crema flex items-center justify-center shadow-xl shadow-cielo-pink/20 mb-8 border-4 border-white overflow-hidden">
-            <img src="logo.png" alt="Cielo Food House" class="w-full h-full object-cover" onerror="this.onerror=null; this.outerHTML='<span class=\'text-white font-extrabold text-3xl md:text-5xl\'>CH</span>';">
+        <div class="max-w-4xl mx-auto text-center relative z-10 glass-panel rounded-3xl p-8 md:p-14 animate-float">
+            <h1 class="text-5xl md:text-7xl font-extrabold text-cielo-dark tracking-tight leading-tight mb-6">
+                El verdadero <span class="text-cielo-pink">Sabor Venezolano</span>
+            </h1>
+            <p class="text-lg md:text-xl text-cielo-dark/80 font-medium mb-10 max-w-2xl mx-auto">
+                Tequeños, mandocas y pasteles preparados con la receta tradicional. 
+                Perfectos para tus fiestas, reuniones o para darte un gusto inolvidable.
+            </p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="#menu" class="bg-cielo-dark text-white font-bold py-3 px-8 rounded-full hover:bg-cielo-pink transition-colors shadow-lg">Ver Menú</a>
+                <a href="https://wa.me/5491130322122" target="_blank" class="bg-white border-2 border-cielo-pink text-cielo-pink font-bold py-3 px-8 rounded-full hover:bg-cielo-pinkLight transition-colors">Hacer un Pedido</a>
+            </div>
         </div>
+    </section>
 
-        <h1 class="text-4xl md:text-5xl font-extrabold text-cielo-dark tracking-tight leading-tight mb-4">
-            Cielo<br>Food House
-        </h1>
+    <!-- Menu Section -->
+    <section id="menu" class="py-20 px-4 bg-white relative">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-extrabold text-cielo-dark mb-4">Nuestro Menú</h2>
+                <div class="h-1 w-24 bg-cielo-pink mx-auto rounded-full"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Mix Fiestero -->
+                <div class="glass-panel p-6 rounded-3xl border border-gray-100 hover:shadow-xl transition-shadow">
+                    <div class="h-48 rounded-2xl bg-cielo-pinkLight mb-4 flex items-center justify-center overflow-hidden">
+                        <span class="text-5xl">🥟</span>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-2">Mix Fiestero</h3>
+                    <p class="text-gray-600 mb-4 text-sm">15 mini tequeños, 15 mini pastelitos y 15 mini empanaditas. Ideal para compartir. (Pollo, Carne o Mixto).</p>
+                    <div class="flex justify-between items-center mt-auto">
+                        <span class="text-xl font-extrabold text-cielo-pink">$38.000</span>
+                    </div>
+                </div>
+
+                <!-- Tequeños -->
+                <div class="glass-panel p-6 rounded-3xl border border-gray-100 hover:shadow-xl transition-shadow">
+                    <div class="h-48 rounded-2xl bg-cielo-crema/20 mb-4 flex items-center justify-center overflow-hidden">
+                        <span class="text-5xl">🥖</span>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-2">Tequeños</h3>
+                    <p class="text-gray-600 mb-4 text-sm">El rey de las fiestas venezolanas. Dedos de queso envueltos en una masa crujiente.</p>
+                    <ul class="text-sm text-gray-700 mb-4 space-y-1">
+                        <li class="flex justify-between"><span>Docena</span> <span class="font-bold">$20.000</span></li>
+                        <li class="flex justify-between"><span>25 unidades (Fiesta)</span> <span class="font-bold">$21.000</span></li>
+                    </ul>
+                </div>
+
+                <!-- Empanadas -->
+                <div class="glass-panel p-6 rounded-3xl border border-gray-100 hover:shadow-xl transition-shadow">
+                    <div class="h-48 rounded-2xl bg-cielo-blue/20 mb-4 flex items-center justify-center overflow-hidden">
+                        <span class="text-5xl">🥙</span>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-2">Empanadas & Pasteles</h3>
+                    <p class="text-gray-600 mb-4 text-sm">Crujientes empanadas de maíz y pasteles de trigo con tus rellenos favoritos.</p>
+                    <ul class="text-sm text-gray-700 mb-4 space-y-1">
+                        <li class="flex justify-between"><span>Empanadas (Pollo/Carne/Queso)</span> <span class="font-bold">$3.000 c/u</span></li>
+                        <li class="flex justify-between"><span>Pasteles (Pollo/Carne/Pizza)</span> <span class="font-bold">$2.000 c/u</span></li>
+                        <li class="flex justify-between"><span>Mandocas</span> <span class="font-bold">$2.000 c/u</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact & Footer -->
+    <footer class="bg-cielo-dark text-white pt-16 pb-8 px-4">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
+            <div>
+                <h4 class="text-2xl font-extrabold mb-4 text-cielo-pink">Cielo Food House</h4>
+                <p class="text-gray-300 text-sm leading-relaxed mb-6">
+                    Llevamos el auténtico sabor de Venezuela a tu mesa. Elaboración artesanal con los mejores ingredientes para garantizar una experiencia inigualable en cada bocado.
+                </p>
+                <div class="flex gap-4">
+                    <a href="https://www.instagram.com/cielofoodhouse/" target="_blank" class="text-white hover:text-cielo-pink transition-colors">
+                        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                    </a>
+                    <a href="https://www.facebook.com/profile.php?id=61585324872310" target="_blank" class="text-white hover:text-blue-400 transition-colors">
+                        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                    </a>
+                </div>
+            </div>
+            
+            <div>
+                <h4 class="text-lg font-bold mb-4 border-b border-gray-700 pb-2">Contacto y Ubicación</h4>
+                <ul class="space-y-3 text-sm text-gray-300 mb-4">
+                    <li class="flex items-start gap-2">
+                        <span class="text-cielo-pink">📍</span> 
+                        <a href="https://maps.app.goo.gl/bL9H3moin49gabu59" target="_blank" class="hover:text-cielo-pink transition-colors underline decoration-dotted">
+                            Buenos Aires, Argentina (Ver en Maps)
+                        </a>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-cielo-pink">📞</span> <span>+54 9 11 3032-2122</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-cielo-pink">✉️</span> <span>contacto@cielofoodhouse.com</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-cielo-pink">🕒</span> <span>Horario: Lunes a Domingo, 10:00 - 22:00</span>
+                    </li>
+                </ul>
+                <!-- Google Maps Embed Pequeño -->
+                <div class="w-full h-32 rounded-xl overflow-hidden border border-gray-700">
+                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d105073.44367005474!2d-58.503338!3d-34.615662!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bcca3b4ef90cbd%3A0xa0b3812e88e88e87!2sBuenos%20Aires%2C%20CABA%2C%20Argentina!5e0!3m2!1ses!2s!4v1680000000000!5m2!1ses!2s" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-lg font-bold mb-4 border-b border-gray-700 pb-2">Información Legal</h4>
+                <ul class="space-y-3 text-sm text-gray-300">
+                    <li><button @click="modalContent = 'terms'; modalOpen = true" class="hover:text-cielo-pink transition-colors">Términos y Condiciones</button></li>
+                    <li><button @click="modalContent = 'privacy'; modalOpen = true" class="hover:text-cielo-pink transition-colors">Política de Privacidad</button></li>
+                    <li><button @click="modalContent = 'refund'; modalOpen = true" class="hover:text-cielo-pink transition-colors">Política de Reembolsos y Devoluciones</button></li>
+                </ul>
+            </div>
+        </div>
         
-        <div class="inline-block bg-cielo-pinkLight text-cielo-pink font-bold px-4 py-1.5 rounded-full text-sm mb-6 uppercase tracking-wider border border-cielo-pink/20">
-            Próximamente
+        <div class="text-center text-xs text-gray-500 border-t border-gray-800 pt-8">
+            &copy; 2024 Cielo Food House. Todos los derechos reservados.
         </div>
+    </footer>
 
-        <p class="text-cielo-dark/70 font-medium text-lg leading-relaxed mb-10">
-            Estamos cocinando una nueva experiencia digital para ti.<br>
-            <strong>Momentos que saben a Venezuela</strong>, ahora a un clic de distancia.
-        </p>
+    <!-- Modals for Legal Policies -->
+    <div x-show="modalOpen" style="display: none;" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <!-- Backdrop -->
+        <div x-show="modalOpen" x-transition.opacity class="absolute inset-0 modal-bg" @click="modalOpen = false"></div>
+        
+        <!-- Modal Content -->
+        <div x-show="modalOpen" 
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+             x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+             class="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-8 border border-gray-100">
+            
+            <button @click="modalOpen = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
 
-        <!-- SOCIAL LINKS -->
-        <div class="flex flex-col md:flex-row justify-center gap-3">
-            <a href="https://www.instagram.com/cielofoodhouse/" target="_blank" class="flex-1 bg-gradient-to-r from-cielo-pink to-[#f47ba0] text-white font-bold py-3 px-2 rounded-2xl hover:scale-105 transition-transform shadow-lg shadow-cielo-pink/30 flex items-center justify-center gap-1.5 text-sm md:text-base">
-                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-                Instagram
-            </a>
-            <a href="https://www.facebook.com/profile.php?id=61585324872310" target="_blank" class="flex-1 bg-gradient-to-r from-[#1877F2] to-[#0A66C2] text-white font-bold py-3 px-2 rounded-2xl hover:scale-105 transition-transform shadow-lg shadow-blue-500/30 flex items-center justify-center gap-1.5 text-sm md:text-base">
-                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                Facebook
-            </a>
-            <a href="https://wa.me/5491130322122" target="_blank" class="flex-1 bg-gradient-to-r from-green-400 to-green-500 text-white font-bold py-3 px-2 rounded-2xl hover:scale-105 transition-transform shadow-lg shadow-green-500/30 flex items-center justify-center gap-1.5 text-sm md:text-base">
-                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12.031 0C5.385 0 0 5.384 0 12.03c0 2.128.552 4.195 1.6 6.002L.032 24l6.11-1.597A11.973 11.973 0 0012.031 24c6.643 0 12.03-5.384 12.03-12.03C24.062 5.384 18.675 0 12.031 0zm0 22.015c-1.802 0-3.564-.485-5.111-1.405l-.366-.217-3.791.99.998-3.69-.236-.376A9.97 9.97 0 012.015 12.03C2.015 6.49 6.492 2.015 12.031 2.015c5.536 0 10.015 4.475 10.015 10.015 0 5.541-4.478 10.015-10.015 10.015zm5.534-7.553c-.303-.15-1.794-.886-2.072-.988-.28-.1-.482-.15-.685.15-.205.302-.782.986-.957 1.187-.176.2-.352.226-.653.076-2.18-.891-3.676-2.616-4.103-3.32-.05-.084 0-.17.076-.245.068-.066.15-.175.226-.263.075-.088.1-.15.15-.25.05-.1.026-.188-.011-.264-.04-.075-.683-1.645-.935-2.253-.245-.595-.494-.515-.684-.524-.176-.008-.378-.01-.58-.01-.2 0-.528.075-.805.376-.277.302-1.055 1.03-1.055 2.513s1.08 2.915 1.232 3.116c.15.203 2.126 3.242 5.148 4.545 1.83.788 2.656.883 3.633.743.834-.12 2.648-1.082 3.024-2.126.377-1.044.377-1.936.265-2.126-.115-.19-.418-.29-.72-.442z"/></svg>
-                WhatsApp
-            </a>
+            <!-- Términos y Condiciones -->
+            <div x-show="modalContent === 'terms'">
+                <h3 class="text-2xl font-bold mb-4 text-cielo-dark">Términos y Condiciones</h3>
+                <div class="text-sm text-gray-600 space-y-4">
+                    <p>Bienvenido a Cielo Food House. Al acceder a nuestro sitio web o interactuar con nuestros canales de venta (como WhatsApp), usted acepta estar sujeto a estos términos y condiciones.</p>
+                    <p><strong>1. Uso del Servicio:</strong> Ofrecemos venta de comida preparada. Los precios están sujetos a cambios sin previo aviso. Las descripciones de los productos se esfuerzan por ser precisas, pero pueden variar.</p>
+                    <p><strong>2. Pedidos y Pagos:</strong> Los pedidos se consideran confirmados una vez que el pago ha sido procesado o acordado con el negocio. Aceptamos Efectivo, Mercado Pago y Transferencias. El cliente debe proveer información veraz y exacta para la entrega.</p>
+                    <p><strong>3. Envíos:</strong> Los tiempos de entrega son estimados y pueden variar según la demanda y condiciones externas. Cielo Food House no se hace responsable por demoras fuera de su control razonable.</p>
+                    <p><strong>4. Uso de WhatsApp:</strong> Nuestro canal de WhatsApp está automatizado parcialmente con Inteligencia Artificial. El usuario acepta recibir notificaciones sobre el estado de su pedido por esta vía.</p>
+                </div>
+            </div>
+
+            <!-- Política de Privacidad -->
+            <div x-show="modalContent === 'privacy'">
+                <h3 class="text-2xl font-bold mb-4 text-cielo-dark">Política de Privacidad</h3>
+                <div class="text-sm text-gray-600 space-y-4">
+                    <p>En Cielo Food House valoramos y respetamos su privacidad. Esta política explica cómo recopilamos, usamos y protegemos su información personal.</p>
+                    <p><strong>1. Recopilación de Datos:</strong> Recopilamos su número de teléfono, nombre, y dirección de envío únicamente cuando usted nos contacta de forma voluntaria a través de WhatsApp para realizar un pedido.</p>
+                    <p><strong>2. Uso de la Información:</strong> Utilizamos sus datos personales exclusivamente para: procesar sus pedidos, realizar el envío, enviarle notificaciones sobre el estado de su compra y responder a consultas de soporte.</p>
+                    <p><strong>3. Intercambio de Datos:</strong> No vendemos, alquilamos ni compartimos su información personal con terceros no relacionados, excepto cuando sea necesario para cumplir con un pedido (por ejemplo, con empresas de reparto).</p>
+                    <p><strong>4. Interacción con Plataformas de Meta:</strong> Al comunicarse con nosotros a través de WhatsApp Business, usted acepta los términos de uso de Meta. Procesamos sus mensajes usando proveedores de Inteligencia Artificial (Google) únicamente para el propósito de gestionar su pedido.</p>
+                </div>
+            </div>
+
+            <!-- Política de Reembolsos -->
+            <div x-show="modalContent === 'refund'">
+                <h3 class="text-2xl font-bold mb-4 text-cielo-dark">Política de Reembolsos y Devoluciones</h3>
+                <div class="text-sm text-gray-600 space-y-4">
+                    <p>Debido a la naturaleza perecedera de nuestros productos (alimentos preparados), nuestras políticas de devolución son estrictas para garantizar la salud y seguridad.</p>
+                    <p><strong>1. Devoluciones:</strong> No aceptamos devoluciones de productos alimenticios una vez que han sido entregados y aceptados por el cliente, a menos que el producto entregado sea incorrecto o presente problemas comprobables de calidad.</p>
+                    <p><strong>2. Reembolsos:</strong> Si recibe un producto incorrecto o en mal estado, debe notificarnos en un plazo no mayor a 1 hora después de la entrega, incluyendo fotografías. Evaluaremos la situación y, de ser procedente, ofreceremos el reemplazo del producto o un reembolso parcial/total a discreción del negocio.</p>
+                    <p><strong>3. Cancelaciones:</strong> Puede cancelar su pedido antes de que el mismo ingrese al estado de "preparación" en la cocina. Una vez que la comida ha comenzado a prepararse, no se aceptarán cancelaciones ni reembolsos.</p>
+                </div>
+            </div>
+            
         </div>
-
-    </main>
+    </div>
 
 </body>
 </html>
